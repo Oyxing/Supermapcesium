@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>限高分析</title>
+    <!-- <meta http-equiv="Access-Control-Allow-Origin" content="*"> -->
+    <link href="./css/widgets.css" rel="stylesheet">
+    <link href="./css/font-awesome.min.css" rel="stylesheet">
+    <link href="./css/pretty.css" rel="stylesheet">
+    <link href="./css/style.css" rel="stylesheet">
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <!-- 引入组件库 -->
+    <script src="./js/vue.min.js"></script>
+
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <!-- <script src="./js/slider.js"></script> -->
+    <script src="./js/config.js"></script>
+    <script src="./js/tooltip.js"></script>
+    <!-- <script src="./js/spectrum.js"></script> -->
+    <script src="./Build/Cesium/Cesium.js"></script>
+    <script type="text/javascript" src="./js/require.min.js"></script>
+    <script type="text/javascript" src="./Build/Cesium/Workers/zlib.min.js"></script>
+    <style media="screen">
+        * {
+            margin: 0px;
+            padding: 0px;
+        }
+        
+        .digterrains {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.6);
+            height: max-content;
+            width: max-content;
+            box-shadow: 1px 1px 20px rgba(0, 0, 0, .6)
+        }
+        
+        .param-item {
+            padding: 0 0 20px 0;
+            border-bottom: 1px solid #a9a9a9;
+        }
+        
+        .form-label {
+            font-weight: bold;
+            margin-top: 6px;
+        }
+        
+        .form-label span {
+            font-weight: bold;
+            color: #f00;
+        }
+        
+        .one {
+            font-size: 16px;
+            margin-top: 20px;
+            font-weight: bold
+        }
+        
+        .one-biaotou {
+            padding: 2px 20px;
+            background: rgba(0, 0, 0, .1);
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .cesium-viewer-bottom {
+            display: none !important;
+        }
+        
+        table tr td {
+            text-align: center;
+            font-size: 14px;
+            border: 1px solid #a9a9a9;
+            padding: 2px 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="cesiumContainer"></div>
+        <div id='toolbar' v-show="toolboor" class='btn-group' style='position: absolute;left: 5px;top: 5px;display: none;'>
+            <div>
+                <label class="form-label">开挖 深度 (米) :</label>
+                <input id="depth" type="number" required="required" v-model="numdepth" style="width:90px;" />
+            </div>
+            <button @click="exhight" class="button black">限高分析</button>
+            <button @click="hightanalyze" class="button black">高度 分析</button>
+            <button @click="exfun" class="button black">占用 分析</button>
+            <button @click="digTerrains" class="button black">开挖</button>
+            <div>
+                <button type="button" style="float:right;" @click="reset" class="button black">重置</button>
+            </div>
+        </div>
+        <div class="digterrains">
+            <div class="param-item">
+                <div class="form-label">多边形面积: <span>{{Area}}</span></div>
+                <div class="form-label">多边形体积: <span>{{Bulk}}</span></div>
+            </div>
+            <div class="one">多边形点位置</div>
+            <table style="margin-top:6px;padding-bottom: 20px;border-bottom: 1px solid #a9a9a9;width: 100%;">
+                <tr>
+                    <th class="one-biaotou">
+                        经度
+                    </th>
+                    <th class="one-biaotou">
+                        纬度
+                    </th>
+                    <th class="one-biaotou">
+                        椭球高
+                    </th>
+                </tr>
+                <tr v-for="(item,index) in positionsdata" :key="index">
+                    <td>{{item.x}}</td>
+                    <td>{{item.y}}</td>
+                    <td>{{item.h}}</td>
+                </tr>
+            </table>
+            <div class="">
+                <div class="one">超过高度的楼</div>
+                <table style="margin-top:6px;padding-bottom:20px;border-bottom:1px solid #a9a9a9;width:100%;">
+                    <tr>
+                        <th class="one-biaotou">
+                            楼名
+                        </th>
+                        <th class="one-biaotou">
+                            楼高
+                        </th>
+                    </tr>
+                    <tr v-for="(item,index) in towermsgarr" :key="index">
+                        <td>{{item.name}}</td>
+                        <td>{{item.height}}米</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="">
+                <div class="one"> 占用楼</div>
+                <table style="margin-top:6px;padding-bottom:20px;width:100%;">
+                    <tr>
+                        <th class="one-biaotou">
+                            楼名
+                        </th>
+                        <th class="one-biaotou">
+                            楼高
+                        </th>
+                        <th class="one-biaotou">
+                            价格
+                        </th>
+                    </tr>
+                    <tr v-for="(item,index) in occupymsgarr" :key="index">
+                        <td>{{item.name}}</td>
+                        <td>{{item.height}}米</td>
+                        <td>{{item.price}}万</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var arr = [
+            [115.00870753744542, 39.00891810522561, 100, "10"],
+            [115.0094622822797, 39.00892353281665, 20, "10"],
+            [115.00809608241866, 39.008325988457045, 80, "10"],
+            [115.00835612558149, 39.00835744413002, 60, "15"],
+            [115.00896679539953, 39.00841697260169, 70, "10"],
+            [115.0089892659238, 39.008214167286035, 50, "10"],
+            [115.00793679685891, 39.00789565666688, 30, "10"],
+            [115.00871996273331, 39.0079805602769, 40, "10"]
+        ]
+        var polygonjson = [{
+            x: 115.0074779766032,
+            y: 39.008360228607515
+        }, {
+            x: 115.0095669895822,
+            y: 39.008600511032284
+        }, {
+            x: 115.0096994171753,
+            y: 39.0076746497473
+        }, {
+            x: 115.00777911894508,
+            y: 39.00745000730778
+        }, ]
+        var app = new Vue({
+            el: "#app",
+            data: {
+                entitiehhetghtarr: [],
+                dataJson: [],
+                Bulk: "",
+                positionsdata: [],
+                toolboor: false,
+                Area: "",
+                numdepth: 100,
+                viewer: {},
+                scene: {},
+                arr: [],
+                towermsgarr: [],
+                handlerArea: "",
+                handlerPolygon: "",
+                tooltipdata: "",
+                entity: "",
+                entitiejson: [],
+                // 实体位置 和 高度
+                heightModejson: {},
+                // 实体位置 和 信息
+                towerMsgjson: {},
+                // 实体位置 和 实体对象
+                towerModejson: {},
+                // 测量的 实体位置 和 实体对象
+                exheightModejson: {},
+                // 实体位置 和 是否在区域内
+                arrbool: {},
+                // 占用楼
+                occupymsgarr: [],
+                // 广告数集
+                billboardArr: [],
+                // 定时器
+                time: 0,
+            },
+            mounted() {
+                //初始化viewer部件
+                var viewer = new Cesium.Viewer('cesiumContainer', {
+
+                    imageryProvider: new Cesium.BingMapsImageryProvider({
+                        url: 'https://dev.virtualearth.net',
+                        mapStyle: Cesium.BingMapsStyle.AERIAL,
+                        key: "Av63hPkCmH18oGGn5Qg3QhLBJvknZ97xbhyw3utDLRtFv7anHjXNOUQbyWBL5fK5"
+                    })
+                });
+
+                //添加基础拖放功能
+                viewer.extend(Cesium.viewerDragDropMixin);
+                this.viewer = viewer
+                viewer.clock.currentTime = Cesium.JulianDate.addSeconds(viewer.clock.currentTime, 0.1, viewer.clock.currentTime);
+                var scene = viewer.scene;
+                this.scene = scene
+                scene.camera.frustum.near = 0.01;
+                var widget = viewer.cesiumWidget;
+                this.toolboor = true
+                var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+                scene.camera.setView({
+                    destination: Cesium.Cartesian3.fromDegrees(115.00777911894508, 39.007939083301046, 100),
+                    // destination: Cesium.Cartesian3.fromDegrees(115.00366140297365, 39.00939422072619, 9000),
+                    orientation: {
+                        heading: 0.018676753301833493,
+                        pitch: -0.657212271402404,
+                        roll: 0
+                    }
+                });
+
+                this.createdInit()
+
+            },
+            methods: {
+                createdInit() {
+                    // 创建白模
+                    this.createdPolygon()
+                        //  创建盒子
+                    this.towerModejson = this.createdBox(arr)
+
+                    var towermsgarr = []
+                    var dataJson = []
+
+                    const vararr = this.occupyanalyze(polygonjson, this.towerModejson)
+
+                    var entitiearr = []
+
+                    for (var key in vararr) {
+                        if (vararr[key]) {
+                            const entitiejson = this.towerModejson[key]
+                            if (entitiejson) {
+                                const json = this.switchplace(entitiejson.position, this.heightModejson[key])
+                                json["viewerentities"] = entitiejson
+                                json["name"] = entitiejson.name
+                                json["sum"] = json.sum
+                                dataJson.push(json)
+                            }
+                        }
+                    }
+                    this.dataJson = dataJson
+
+                    for (var key in this.towerModejson) {
+                        entitiearr.push(this.towerModejson[key])
+                    }
+                    for (var i = 0; i < entitiearr.length; i++) {
+                        var viewerentities = entitiearr[i]
+                        entitiearr[i]
+                        var str = viewerentities.box.dimensions.toString()
+                        var newstr = str.slice(1, str.length - 1).split(",")[str.slice(1, str.length - 1).split(",").length - 1]
+                        towermsgarr.push({
+                            name: viewerentities.name,
+                            height: Number(newstr)
+                        })
+                    }
+
+                    this.towermsgarr = towermsgarr
+                },
+                exfun(positionsdata) {
+                    if (positionsdata.length) {
+                        const vararr = this.occupyanalyze(positionsdata, this.towerModejson)
+                        this.removeEntities(this.billboardArr)
+                        const billboardArr = []
+                        this.occupymsgarr = []
+                        for (var key in vararr) {
+                            if (this.towerModejson[key]) {
+                                this.occupymsgarr.push(this.towerMsgjson[key])
+                                const json = this.switchplace(this.towerModejson[key].position, this.heightModejson[key])
+                                var position = Cesium.Cartesian3.fromDegrees(json.x, json.y, json.sum + 10);
+                                const billboard = this.viewer.entities.add({
+                                    position: position,
+                                    billboard: {
+                                        image: './image/location4.png',
+                                        width: 20,
+                                        height: 30,
+                                    }
+                                });
+                                billboardArr.push(billboard)
+                            }
+                        }
+                        this.billboardArr = billboardArr
+                    }
+                },
+                //  清除 设置实体
+                removeEntities(entities, bool) {
+                    if (!bool) {
+                        if (entities.length) {
+                            for (var i = 0; i < entities.length; i++) {
+                                this.viewer.entities.remove(entities[i])
+                            }
+                        }
+                    } else {
+                        this.viewer.entities.remove(entities)
+                    }
+                },
+                // ----
+                // 筛选
+                occupyanalyze(positionsdata, towerModejson) {
+                    const towerMode = []
+                    for (var key in towerModejson) {
+                        towerMode.push(this.switchplace(towerModejson[key].position))
+                    }
+                    const arrbool = {}
+                    if (positionsdata.length) {
+                        for (var i = 0; i < towerMode.length; i++) {
+                            const boolstr = this.isInPolygon(towerMode[i], positionsdata)
+                            if (boolstr) {
+                                arrbool[towerMode[i].x] = boolstr
+                            }
+                        }
+                    }
+                    return arrbool
+                },
+                // 计算 柱体是否在 面内
+                isInPolygon(pt, poly) {
+                    for (var c = false, i = -1, l = poly.length, j = l - 1; ++i < l; j = i)
+                        ((poly[i].y <= pt.y && pt.y < poly[j].y) || (poly[j].y <= pt.y && pt.y < poly[i].y)) &&
+                        (pt.x < (poly[j].x - poly[i].x) * (pt.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x) &&
+                        (c = !c);
+                    return c;
+                },
+                // ----
+                // 创建 box
+                createdBox(arr, bool) {
+                    const entitiejson = {}
+                    var height
+                    var Zheight
+                    if (!bool) {
+                        this.towerModejson = {}
+                    }
+                    for (var i = 0; i < arr.length; i++) {
+                        if (!bool) {
+                            Zheight = arr[i][2]
+                        } else {
+                            Zheight = 0
+                        }
+                        var position = Cesium.Cartesian3.fromDegrees(arr[i][0], arr[i][1], Zheight / 2);
+                        // 展示文本
+                        var description = `
+                        <table class="cesium ingoBox defaultTable">
+                          <tbody>
+                            <tr>
+                              <th>name</th>
+                              <td>` + "楼 00" + i + `</td>
+                            </tr>
+                            <tr>
+                              <th>height</th>
+                              <td>` + Zheight + `米</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      `
+                        var height
+                        if (!bool) {
+                            height = arr[i][2]
+                        } else {
+                            height = 0
+                        }
+                        var viewer = this.viewer
+                            // 添加实体
+                        var entities = viewer.entities.add({
+                            description: description,
+                            name: "楼 00" + i,
+                            position: position,
+                            box: {
+                                dimensions: new Cesium.Cartesian3(10.0, 10.0, height),
+                                material: Cesium.Color.WHITE.withAlpha(0.5),
+                                outline: true,
+                                outlineColor: Cesium.Color.WHITE
+                            }
+                        });
+                        entitiejson[arr[i][0]] = entities
+                        if (!bool) {
+                            this.towerMsgjson[arr[i][0]] = {
+                                name: "楼 00" + i,
+                                height: Zheight,
+                                price: arr[i][3]
+                            }
+                            this.heightModejson[arr[i][0]] = height
+                        }
+                    }
+
+                    return entitiejson
+                },
+                //  创建多边形  白模
+                createdPolygon() {
+                    var viewer = this.viewer
+                        // 多边体
+                    var entity = viewer.entities.add({
+                        id: 'polygon',
+                        description: "<h3>竖直高度: 0</h3>",
+                        polygon: {
+                            hierarchy: Cesium.Cartesian3.fromDegreesArray([
+                                115.0074779766032, 39.008360228607515,
+                                115.0095669895822, 39.008600511032284,
+                                115.0096994171753, 39.0076746497473,
+                                115.00777911894508, 39.00745000730778,
+                            ]),
+                            height: 0,
+                            material: Cesium.Color.YELLOW.withAlpha(0.5),
+                            outline: true,
+                            outlineColor: Cesium.Color.RED,
+                            outlineWidth: 50
+                        }
+                    });
+
+                    this.entity = entity
+
+                },
+                //  使用 x y z 获取经纬度
+                switchplace(position, height) {
+                    const viewer = this.viewer
+                    const place = position._value
+                    var ellipsoid = viewer.scene.globe.ellipsoid;
+                    var cartesian3 = new Cesium.Cartesian3(place.x, place.y, place.z);
+                    var cartographic = ellipsoid.cartesianToCartographic(cartesian3);
+                    var longitude = Cesium.Math.toDegrees(cartographic.longitude);
+                    var latitude = Cesium.Math.toDegrees(cartographic.latitude);
+                    return {
+                        x: longitude,
+                        y: latitude,
+                        sum: height
+                    }
+                },
+                // 测量 高度
+                // 侧高度
+                hightanalyze() {
+                    var handlerDVH = new Cesium.MeasureHandler(this.viewer, Cesium.MeasureMode.DVH, 0);
+                    handlerDVH.activate();
+                    handlerDVH.measureEvt.addEventListener((res) => {
+                        console.log(res)
+                    })
+                },
+                // 创建图层
+                createdCover() {
+                    //  移除 创建过的 图层
+                    if (this.entitiehhetghtarr.length) {
+                        for (var i = 0; i < this.entitiehhetghtarr.length; i++) {
+                            if (this.viewer.entities.contains(this.entitiehhetghtarr[i])) {
+                                app.viewer.entities.remove(this.entitiehhetghtarr[i])
+                            }
+                        }
+                    }
+                    //  创建 创建 图层
+                    var coverageetghtarr = this.createdBox(arr, true)
+                        //  图层 储存
+                    const vararr = this.occupyanalyze(polygonjson, coverageetghtarr)
+                    var entitiearr = []
+                    for (var key in vararr) {
+                        if (vararr[key]) {
+                            const entitiejson = coverageetghtarr[key]
+                            for (var i = 0; i < this.dataJson.length; i++) {
+                                if (this.dataJson[i].x == key) {
+                                    this.dataJson[i]["viewerexheight"] = entitiejson
+                                }
+                            }
+                        }
+                    }
+
+                },
+                //  定时器设置高度
+                exhight() {
+                    this.createdCover()
+                    var polygontop = 2
+                    this.setheight(polygontop)
+                    const time = setInterval(() => {
+                        if (polygontop >= 50) {
+                            clearInterval(time)
+                        }
+                        polygontop += 2;
+                        this.setheight(polygontop)
+                    }, 500)
+                    this.time = time
+                },
+                // 上升高度
+                setheight(polygontop) {
+                    const towermsgarr = []
+                    for (var i = 0; i < this.dataJson.length; i++) {
+                        this.testdemo(this.dataJson[i], polygontop)
+                        const {
+                            sum,
+                            name
+                        } = this.dataJson[i]
+                        if (sum > polygontop) {
+                            towermsgarr.push({
+                                name: name,
+                                height: sum
+                            })
+                        }
+                    }
+                    this.towermsgarr = towermsgarr
+                    this.entity.polygon.height = polygontop;
+                    this.entity.description = `
+                  <span>
+                  竖直高度升高
+                  ` + polygontop + `
+                  </span>
+                `
+                },
+                // 动画测高
+                testdemo({
+                    x,
+                    y,
+                    sum,
+                    viewerentities,
+                    name,
+                    viewerexheight
+                } = json, upheight) {
+                    if ((sum - upheight) >= 0) {
+                        viewerentities.box.dimensions = new Cesium.Cartesian3(10.0, 10.0, upheight)
+                        viewerentities.position = Cesium.Cartesian3.fromDegrees(x, y, upheight / 2)
+                        var description = `
+                      <table class="cesium ingoBox defaultTable">
+                        <tbody>
+                          <tr>
+                            <th>name</th>
+                            <td>` + name + `</td>
+                          </tr>
+                          <tr>
+                            <th>height</th>
+                            <td> 超出高度` + (sum - upheight) + `米</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      `
+                            // 另一半 红
+                        viewerexheight.box.dimensions = new Cesium.Cartesian3(10.0, 10.0, (sum - upheight))
+                        viewerexheight.position = Cesium.Cartesian3.fromDegrees(x, y, (sum - upheight) / 2 + upheight)
+                        viewerexheight.description = description
+
+                        viewerexheight.box.material = Cesium.Color.RED
+                        viewerexheight.box.outlineColor = Cesium.Color.RED
+
+                    } else {
+                        // removed(viewerexheight)
+                        this.removeEntities(viewerexheight, true)
+                    }
+                },
+                // 开挖
+                digTerrains() {
+                    this.digTerrain(this.viewer, this.scene);
+                },
+                digTerrain(viewer, scene) {
+                    var tooltip = createTooltip(viewer._element);
+                    //绘制多边形
+                    var handlerPolygon = new Cesium.DrawHandler(viewer, Cesium.DrawMode.Polygon, 0);
+                    var clampMode = 0; // 空间模式
+                    //初始化测量面积
+                    var handlerArea = new Cesium.MeasureHandler(viewer, Cesium.MeasureMode.Area, clampMode);
+                    app.handlerArea = handlerArea
+                    app.handlerPolygon = handlerPolygon
+
+                    handlerPolygon.activeEvt.addEventListener((isActive) => {
+                        if (isActive == true) {
+                            viewer.enableCursorStyle = false;
+                            viewer._element.style.cursor = '';
+                            // $('body').removeClass('drawCur').addClass('drawCur');
+                        } else {
+                            viewer.enableCursorStyle = true;
+                            // $('body').removeClass('drawCur');
+                        }
+                    });
+                    handlerPolygon.movingEvt.addEventListener((windowPosition) => {
+                        if (windowPosition.x < 200 && windowPosition.y < 150) {
+                            tooltip.setVisible(false);
+                            return;
+                        }
+                        if (handlerPolygon.isDrawing) {
+                            tooltip.showAt(windowPosition, '<p>点击确定开挖区域中间点</p><p>右键单击结束绘制,进行开挖</p>');
+                        } else {
+                            tooltip.showAt(windowPosition, '<p>点击绘制开挖区域第一个点</p>');
+                        }
+                    });
+                    // 拖拽
+                    handlerPolygon.drawEvt.addEventListener((result) => {
+                        if (!result.object.positions) {
+                            tooltip.showAt(result, '<p>请绘制正确的多边形</p>');
+                            handlerPolygon.polygon.show = false;
+                            handlerPolygon.polyline.show = false;
+                            handlerPolygon.deactivate();
+                            handlerPolygon.activate();
+                            return;
+                        };
+                        var array = [].concat(result.object.positions);
+                        tooltip.setVisible(false);
+                        var positions = [];
+                        var positionsdata = [];
+                        for (var i = 0, len = array.length; i < len; i++) {
+                            var cartographic = Cesium.Cartographic.fromCartesian(array[i]);
+                            var longitude = Cesium.Math.toDegrees(cartographic.longitude);
+                            var latitude = Cesium.Math.toDegrees(cartographic.latitude);
+                            var h = cartographic.height;
+                            if (positions.indexOf(longitude) == -1 && positions.indexOf(latitude) == -1) {
+                                positions.push(longitude);
+                                positions.push(latitude);
+                                positions.push(h);
+                                positionsdata.push({
+                                    x: longitude,
+                                    y: latitude,
+                                    h: h,
+                                })
+                            }
+                        }
+                        this.positionsdata = positionsdata
+                        this.exfun(positionsdata)
+                        viewer.scene.globe.removeAllExcavationRegion();
+                        viewer.scene.globe.addExcavationRegion({
+                            name: 'ggg',
+                            position: positions,
+                            height: app.numdepth,
+                            transparent: false
+                        });
+                        handlerPolygon.polygon.show = false;
+                        handlerPolygon.polyline.show = false;
+                        handlerArea.clear();
+                        handlerPolygon.deactivate();
+                        handlerArea.deactivate();
+                    });
+                    handlerPolygon.activate();
+
+                    if (!scene.pickPositionSupported) {
+                        alert('不支持深度纹理,无法绘制多边形，地形开挖功能无法使用！');
+                    }
+
+                    handlerArea.measureEvt.addEventListener((result) => {
+                        var mj = Number(result.area);
+                        var area = mj > 1000000 ? (mj / 1000000).toFixed(2) + 'km²' : mj.toFixed(2) + '㎡'
+                        app.Area = area
+                        app.Bulk = app.numdepth + "m³"
+                        handlerArea.areaLabel.text = '面积:' + area;
+                    });
+                    handlerArea.activeEvt.addEventListener((isActive) => {
+                        if (isActive == true) {
+                            viewer.enableCursorStyle = false;
+                            viewer._element.style.cursor = '';
+                            // $('body').removeClass('measureCur').addClass('measureCur');
+                        } else {
+                            viewer.enableCursorStyle = true;
+                            // $('body').removeClass('measureCur');
+                        }
+                    });
+                    handlerArea.activate();
+                },
+                reset() {
+                    if (this.tooltipdata) {
+                        this.tooltipdata.setVisible(false);
+                    }
+                    if (this.handlerArea) {
+                        this.handlerArea.deactivate();
+                        this.handlerArea.clear();
+                    }
+                    if (this.handlerPolygon) {
+                        this.handlerPolygon.deactivate();
+                        if (this.handlerPolygon.polygon) {
+                            this.handlerPolygon.polygon.show = false;
+                            this.handlerPolygon.polyline.show = false;
+                        }
+                    }
+                    clearInterval(this.time)
+                    this.viewer.entities.removeAll();
+                    this.viewer.scene.globe.removeAllExcavationRegion();
+
+                    this.createdInit()
+
+                },
+
+            }
+
+        })
+    </script>
+</body>
+
+</html>
